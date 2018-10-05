@@ -62,7 +62,7 @@ if __name__ == "__main__":
                         else:
                             chunk = np.full((shape[axis] - matrix.shape[axis], matrix.shape[1]), value)
                         matrix = np.append(matrix, chunk, axis=axis)
-                        new_x.append(matrix)
+                new_x.append(matrix)
             output_data = new_x, y
         if args.output is not None:
             pickle.dump(output_data, args.output, protocol=pickle.HIGHEST_PROTOCOL)
