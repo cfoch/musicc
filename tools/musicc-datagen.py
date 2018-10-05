@@ -85,3 +85,4 @@ if __name__ == "__main__":
     if args.generate_dataset and args.output_features:
         pickle.dump(features, args.output_features,
                     protocol=pickle.HIGHEST_PROTOCOL)
+        args.output_features.close()
