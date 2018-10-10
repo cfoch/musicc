@@ -5,9 +5,10 @@ import pickle
 import sys
 
 from keras.models import Sequential
-from keras.layers import Dense, Conv2D, MaxPool2D, Flatten
+from keras.layers import Dense, Conv2D, MaxPool2D, Flatten, BatchNormalization
 from keras.optimizers import SGD
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 
 
 def flattenize(data, feature):
@@ -58,24 +59,34 @@ if __name__ == "__main__":
     x_train, x_test, y_train, y_test =\
         train_test_split(data[0], data[1], test_size=0.33, random_state=42)
 
+    le = LabelEncoder()
+    le.fit(data[1])
+    y_train = le.transform(y_train)
+    y_test = le.transform(y_test)
+
+    #from IPython import embed
+    #embed()
+
     if args.standarize:
         x_train = (x_train - x_train.mean()) / x_train.std()
         x_test = (x_train - x_test.mean()) / x_test.std()
 
-    x_train = [matrix[:,:,None] for matrix in x_train]
-    x_test = [matrix[:,:,None] for matrix in x_test]
+    x_train = np.array([matrix[:,:,None] for matrix in x_train])
+    x_test = np.array([matrix[:,:,None] for matrix in x_test])
 
     lr = 0.01
     bs = args.batch_size or 50
     nb = math.ceil(len(x_train) / bs)
 
+    #from IPython import embed
+    #embed()
+
     model = Sequential([
         Conv2D(32, 3, activation='relu', padding='same', input_shape=x_train[0].shape),
-        MaxPool2D(),
+        BatchNormalization(),
         Conv2D(64, 3, activation='relu', padding='same'),
-        MaxPool2D(),
         Conv2D(128, 3, activation='relu', padding='same'),
-        MaxPool2D(),
+        
         Flatten(),
         Dense(10, activation='softmax')
     ])
@@ -84,3 +95,5 @@ if __name__ == "__main__":
     model.summary()
 
     log = model.fit(x_train, y_train, batch_size=bs, epochs=6, validation_data=[x_test, y_test])
+    from IPython import embed
+    embed()
