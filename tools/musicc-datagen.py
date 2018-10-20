@@ -8,6 +8,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import pickle
 import os
+import sys
 
 
 def fix_kwargs(kwargs):
@@ -59,9 +60,9 @@ if __name__ == "__main__":
                         type=argparse.FileType('r', encoding='utf-8'),
                         help="Path to the config file with features to use",
                         required=False)
-    parser.add_argument("-d", "--generate-dataset", action="store_true",
+    parser.add_argument("-d", "--extract-features", action="store_true",
                         required=False)
-    parser.add_argument("-o", "--output-features", type=argparse.FileType("wb"),
+    parser.add_argument("-o", "--output", type=argparse.FileType("wb"),
                         required=False)
 
     args = parser.parse_args()
@@ -77,12 +78,23 @@ if __name__ == "__main__":
             music_path = os.path.join(genre_path, filename)
             y, sr = process_audio_file(music_path)
 
-            if args.generate_dataset:
-                if not dirname in features:
-                    features[dirname] = {}
-                features[dirname][music_path] =\
-                    dict(extract_features_from_config(y, sr, config))
-    if args.generate_dataset and args.output_features:
-        pickle.dump(features, args.output_features,
+            print(filename)
+            if not dirname in features:
+                features[dirname] = {}
+                # _, music_filename = os.path.split(music_path)
+                print(music_path, file=sys.stderr)
+                if not music_path in features:
+                    features[dirname][music_path] = {
+                        "y": y,
+                        "sampling-rate": sr,
+                        "features": []
+                    }
+                if args.extract_features:
+                    features[dirname][music_path] =\
+                        dict(extract_features_from_config(y, sr, config))
+    if args.output:
+        pickle.dump(features, args.output,
                     protocol=pickle.HIGHEST_PROTOCOL)
-        args.output_features.close()
+        args.output.close()
+    else:
+        print(features)
