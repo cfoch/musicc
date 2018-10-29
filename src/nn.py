@@ -6,9 +6,10 @@ import sys
 
 from keras.models import Sequential
 from keras.layers import Dense, Conv2D, MaxPool2D, Flatten, BatchNormalization
+from keras.utils import to_categorical
 from keras.optimizers import SGD
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 
 def flattenize(data, feature):
@@ -53,23 +54,34 @@ if __name__ == "__main__":
     parser.add_argument("--standarize", action="store_true",
                         help="Whether standarize the data.",
                         required=False)
+    parser.add_argument("--encoder", choices=["one-hot", "label"],
+                        help="Whether standarize the data.",
+                        required=False)
+
 
     args = parser.parse_args()
     data = pickle.load(args.input)
     x_train, x_test, y_train, y_test =\
         train_test_split(data[0], data[1], test_size=0.33, random_state=42)
 
-    le = LabelEncoder()
-    le.fit(data[1])
-    y_train = le.transform(y_train)
-    y_test = le.transform(y_test)
 
+    label_encoder = LabelEncoder()
+    label_encoder.fit(data[1])
+    y_train = label_encoder.transform(y_train)
+    y_test = label_encoder.transform(y_test)
     #from IPython import embed
     #embed()
+    if args.encoder == "one-hot":
+        # one_hot_encoder = OneHotEncoder(handle_unknown='ignore')
+        y_train = to_categorical(y_train)
+        y_test = to_categorical(y_test)
+        # from IPython import embed
+        # embed()
+
 
     if args.standarize:
         x_train = (x_train - x_train.mean()) / x_train.std()
-        x_test = (x_train - x_test.mean()) / x_test.std()
+        x_test = (x_test - x_test.mean()) / x_test.std()
 
     x_train = np.array([matrix[:,:,None] for matrix in x_train])
     x_test = np.array([matrix[:,:,None] for matrix in x_test])
@@ -91,7 +103,7 @@ if __name__ == "__main__":
         Dense(10, activation='softmax')
     ])
 
-    model.compile(SGD(lr), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    model.compile(SGD(lr), loss='categorical_crossentropy', metrics=['accuracy'])
     model.summary()
 
     log = model.fit(x_train, y_train, batch_size=bs, epochs=6, validation_data=[x_test, y_test])

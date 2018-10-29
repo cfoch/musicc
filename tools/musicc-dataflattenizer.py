@@ -1,15 +1,52 @@
 import argparse
+import librosa
+import librosa.display
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
 import numpy as np
+import os
 import pickle
 import sys
 
-def flattenize(data, feature):
+
+class PlotWrapper:
+    @classmethod
+    def melspectrogram(cls, x):
+        return librosa.power_to_db(x, ref=np.max)
+
+
+def write_spectogram(feature_data, spectogram_path, args):
+    fig = plt.figure(figsize=(args.image_size, args.image_size))
+    if args.prespectrogram_wrapper and hasattr(PlotWrapper, args.feature):
+        wrapper_func = getattr(PlotWrapper, args.feature)
+        feature_data = wrapper_func(feature_data)
+    librosa.display.specshow(feature_data)
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    with open(spectogram_path, 'wb') as outfile:
+        fig.canvas.print_png(outfile)
+    plt.close()
+
+def flattenize(data, args):
     x = []
     y = []
     for genre in data:
         for file_path in data[genre]:
-            feature_data = data[genre][file_path][feature]
-            x.append(feature_data)
+            feature_data = data[genre][file_path]["features"][args.feature]
+
+            if args.spectogram_path is not None:
+                spectogram_filename = "%s.png" % os.path.basename(file_path)
+                spectogram_path = os.path.join(args.spectogram_path, genre,
+                                               args.feature,
+                                               spectogram_filename)
+                spectogram_dir = os.path.dirname(spectogram_path)
+                print(spectogram_path)
+                if not os.path.isdir(spectogram_dir):
+                    os.makedirs(spectogram_dir)
+                write_spectogram(feature_data, spectogram_path, args)
+                x.append(spectogram_path)
+            else:
+                x.append(feature_data)
             y.append(genre)
     return x, y
 
@@ -31,6 +68,20 @@ if __name__ == "__main__":
                         help="Path to output pickle containing x (features) "
                         "and y (labels)",
                         required=False)
+    parser.add_argument("-w", "--prespectrogram-wrapper", action="store_true",
+                        help="Apply a function to the data before creating the "
+                        "spectrogram",
+                        default=False,
+                        required=False)
+    parser.add_argument("-s", "--spectogram-path",
+                        help="Path to the parent directory containing "
+                        "spectogram image files.",
+                        required=False)
+    parser.add_argument("-S", "--image-size",
+                        type=int,
+                        help="Image size. Size will be S x S.",
+                        default=5,
+                        required=False)
     parser.add_argument("-v", "--value-fill",
                         help="Outputs all the matrixes with the same shape "
                         "filling with the given value",
@@ -45,8 +96,8 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if args.feature is not None:
-        output_data = flattenize(data, args.feature)
-        if args.value_fill:
+        output_data = flattenize(data, args)
+        if not args.spectogram_path and args.value_fill:
             x, y = output_data
             shape_x = max(set([m.shape[0] for m in x]))
             shape_y = max(set([m.shape[1] for m in x]))
@@ -63,7 +114,7 @@ if __name__ == "__main__":
                             chunk = np.full((shape[axis] - matrix.shape[axis], matrix.shape[1]), value)
                         matrix = np.append(matrix, chunk, axis=axis)
                 new_x.append(matrix)
-            output_data = new_x, y
+            output_data = np.array(new_x), y
         if args.output is not None:
             pickle.dump(output_data, args.output, protocol=pickle.HIGHEST_PROTOCOL)
             args.output.close()
