@@ -32,22 +32,24 @@ def flattenize(data, args):
     y = []
     for genre in data:
         for file_path in data[genre]:
-            feature_data = data[genre][file_path]["features"][args.feature]
+            for i, entry in enumerate(data[genre][file_path]):
+                feature_data = entry["features"][args.feature]
 
-            if args.spectogram_path is not None:
-                spectogram_filename = "%s.png" % os.path.basename(file_path)
-                spectogram_path = os.path.join(args.spectogram_path, genre,
-                                               args.feature,
-                                               spectogram_filename)
-                spectogram_dir = os.path.dirname(spectogram_path)
-                print(spectogram_path)
-                if not os.path.isdir(spectogram_dir):
-                    os.makedirs(spectogram_dir)
-                write_spectogram(feature_data, spectogram_path, args)
-                x.append(spectogram_path)
-            else:
-                x.append(feature_data)
-            y.append(genre)
+                if args.spectogram_path is not None:
+                    spectogram_filename = "%s_%d.png" %\
+                        (os.path.basename(file_path), i)
+                    spectogram_path = os.path.join(args.spectogram_path, genre,
+                                                   args.feature,
+                                                   spectogram_filename)
+                    spectogram_dir = os.path.dirname(spectogram_path)
+                    print(spectogram_path)
+                    if not os.path.isdir(spectogram_dir):
+                        os.makedirs(spectogram_dir)
+                    write_spectogram(feature_data, spectogram_path, args)
+                    x.append(spectogram_path)
+                else:
+                    x.append(feature_data)
+                y.append(genre)
     return x, y
 
 

@@ -38,6 +38,16 @@ def extract_features_from_config(y, sr, config):
         result = extract_feature_from_config(y, sr, config, feature)
         yield (feature, result)
 
+def split_overlapped(x, window_size=0.2, overlap=0.5):
+    """
+    Splits the array in chunks that overlap between them.
+    """
+    chunk_size = int(window_size * len(x))
+    offset = int(chunk_size * (1 - overlap))
+    end = len(x) - chunk_size + offset
+    for i in range(0, len(x) - chunk_size + offset, offset):
+        yield x[i: i + chunk_size]
+
 def process_audio_file(audio_file, args):
     extra_kwargs = {}
     if args.duration is not None:
@@ -47,20 +57,30 @@ def process_audio_file(audio_file, args):
     y, sr = librosa.load(audio_file, **extra_kwargs)
     return y, sr
 
-def worker_extractor(worker_queue, features, args):
+def worker_extractor(worker_queue, unused_feature, args):
     while True:
-        music_path, entry = worker_queue.get()
-        print("Start processing:", music_path)
+        music_path, feature_list = worker_queue.get()
+        print("Start processing:", music_path, file=sys.stderr)
 
         y, sr = process_audio_file(music_path, args)
-        if args.extract_time_series:
-            entry["y"] = y
-            entry["sampling-rate"] = sr
+        if args.slide_window:
+            ys = split_overlapped(y, args.window_size, args.window_overlap)
+        else:
+            ys = [y]
 
-        if args.extract_features:
-            entry["features"] =\
-                dict(extract_features_from_config(y, sr, config))
-        print("Finish processing:", music_path)
+        for i, y in enumerate(ys):
+            entry = {"y": None, "sampling-rate": None, "features": {}}
+
+            if args.extract_time_series:
+                entry["y"] = y
+                entry["sampling-rate"] = sr
+
+            if args.extract_features:
+                entry["features"] =\
+                    dict(extract_features_from_config(y, sr, config))
+            feature_list.append(entry)
+            print("Chunk %d created: '%s'" % (i, music_path), file=sys.stderr)
+        print("Finish processing: %s" % music_path, file=sys.stderr)
         worker_queue.task_done()
 
 if __name__ == "__main__":
@@ -81,6 +101,13 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--extract-features", action="store_true",
                         required=False)
     parser.add_argument("-s", "--extract-time-series", action="store_true",
+                        required=False)
+    parser.add_argument("-w", "--slide-window", action="store_true",
+                        default=False,
+                        required=False)
+    parser.add_argument("--window-size", type=float, default=0.2,
+                        required=False)
+    parser.add_argument("--window-overlap", type=float, default=0.5,
                         required=False)
     parser.add_argument("--duration", type=int, required=False)
     parser.add_argument("--offset", type=int, required=False)
@@ -109,11 +136,7 @@ if __name__ == "__main__":
             if not dirname in features:
                 features[dirname] = {}
 
-            features[dirname][music_path] = {
-                "y": None,
-                "sampling-rate": None,
-                "features": {}
-            }
+            features[dirname][music_path] = []
 
             entry = (music_path, features[dirname][music_path])
             worker_queue.put(entry)
