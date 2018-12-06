@@ -117,7 +117,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     config = configparser.ConfigParser()
-    config.read_file(args.configfile)
+    if args.configfile is not None:
+        config.read_file(args.configfile)
 
     features = {}
 
