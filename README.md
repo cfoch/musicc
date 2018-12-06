@@ -58,3 +58,9 @@ with open('filename.pickle', 'rb') as f:
     data = pickle.load(f)
     print(data)
 ```
+
+### musicc-dataflattenize
+It uses the output pickle of *musicc-datagen* which contains a complex structure of the information of the features or wave extracted. This data structure is converted to a plain array of matrices. However, if not enough information, values of the matrices can be filled wih the value 0 if the `value-fill command line option. This can also generate a spectrogram if the command line option 'spectogram-path' is set.
+
+### musicc-augmentation
+This allows to add noise to the wave.
