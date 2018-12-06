@@ -54,7 +54,7 @@ def process_audio_file(audio_file, args):
         extra_args["duration"] = args.duration
     if args.offset is not None:
         extra_kwargs["offset"] = args.offset
-    y, sr = librosa.load(audio_file, **extra_kwargs)
+    y, sr = librosa.load(audio_file, sr=2048, **extra_kwargs)
     return y, sr
 
 def worker_extractor(worker_queue, unused_feature, args):
@@ -77,7 +77,8 @@ def worker_extractor(worker_queue, unused_feature, args):
 
             if args.extract_features:
                 entry["features"] =\
-                    dict(extract_features_from_config(y, sr, config))
+                    dict(extract_features_from_config(y, args.sampling_rate,
+                                                      config))
             feature_list.append(entry)
             print("Chunk %d created: '%s'" % (i, music_path), file=sys.stderr)
         print("Finish processing: %s" % music_path, file=sys.stderr)
@@ -94,6 +95,11 @@ if __name__ == "__main__":
     parser.add_argument("-e", "--extension",
                         help="Extension of the audio files",
                         required=True)
+    parser.add_argument("--sampling-rate",
+                        help="The sampling rate the audio wave will be "
+                             "resampled with. Default is 22050 Hz.",
+                        type=int,
+                        default=22050)
     parser.add_argument("-c", "--configfile",
                         type=argparse.FileType('r', encoding='utf-8'),
                         help="Path to the config file with features to use",
